@@ -2,7 +2,7 @@
   "name": "freakt",
   "version": "0.0.1-S",
   "scripts": {
-    "start": "parcel src/test.html",
+    "start": "parcel src/todo.html",
     "test": "jest"
   },
   "author": "abetaev",
@@ -15,7 +15,10 @@
     "typescript": "^3.6.4"
   },
   "dependencies": {
+    "@material-ui/core": "^4.5.1",
+    "@material-ui/icons": "^4.5.1",
     "react": "^16.11.0",
-    "react-dom": "^16.11.0"
+    "react-dom": "^16.11.0",
+    "typeface-roboto": "0.0.75"
   }
 }
