@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+
+const codeVersion = require('child_process').execSync('git describe').toString('UTF-8').replace('\n', '')
+const packageVersion = JSON.parse(require('fs').readFileSync('package.json')).version
+
+const NON_RELEASE_REGEX = /^v?[\d]+\.[\d]+\.[\d]+-.+$/
+const RELEASE_REGEX = /^v?[\d]+\.[\d]+\.[\d]+$/
+
+let code = -1
+
+if (codeVersion.match(RELEASE_REGEX)) {
+  code = 0 // release
+} else if (codeVersion.endsWith(packageVersion)) {
+  code = 1 // non-release, previous was release
+} else if (codeVersion.match(NON_RELEASE_REGEX)) {
+  code = 2 // non-release, generic
+} else {
+  code = 3 // unknown
+}
+
+require('process').exit(code)
+
