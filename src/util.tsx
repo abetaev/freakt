@@ -19,3 +19,27 @@ export class WithFallback
   }
 
 }
+
+type Pipeline<T> =
+  { [K in keyof T]: Pipeline<T[K]> }
+  & { VALUE: () => T }
+export function ppln<T extends {}>(value: T): Pipeline<T> {
+  function bound(value: any): boolean {
+    return ["string", "number", "boolean", "undefined", "null", "function"]
+      .includes(typeof value)
+  }
+  return new Proxy<T>(
+    bound(value) ? {} as T : value,
+    {
+      get: (_, field: keyof T) => {
+        if (field === "VALUE") {
+          return () => value
+        }
+        if (value && value[field]) {
+          return ppln(value[field])
+        }
+        return ppln(undefined)
+      }
+    }
+  ) as unknown as Pipeline<T>
+}

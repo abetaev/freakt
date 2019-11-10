@@ -1,18 +1,24 @@
 {
   "name": "freakt",
-  "version": "0.0.1-S",
+  "version": "0.0.0",
   "scripts": {
     "start": "parcel src/todo.html",
-    "test": "jest"
+    "test": "echo TODO ; exit 0",
+    "preversion": "npm test",
+    "postversion": "./isRelease && ./deploy"
   },
   "author": "abetaev",
   "license": "MIT",
   "devDependencies": {
+    "@babel/preset-typescript": "^7.7.2",
+    "@types/jest": "^24.0.22",
     "@types/node": "^12.11.7",
     "@types/react": "^16.9.11",
     "@types/react-dom": "^16.9.3",
+    "jest": "^24.9.0",
     "parcel": "^1.12.4",
-    "typescript": "^3.6.4"
+    "ts-jest": "^24.1.0",
+    "typescript": "^3.7.2"
   },
   "dependencies": {
     "@material-ui/core": "^4.5.1",
@@ -20,5 +26,8 @@
     "react": "^16.11.0",
     "react-dom": "^16.11.0",
     "typeface-roboto": "0.0.75"
+  },
+  "deploy": {
+    "publicUrl": "/freakt/"
   }
 }

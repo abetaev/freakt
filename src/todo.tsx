@@ -1,20 +1,23 @@
-import { Box, ButtonGroup, Card, CardHeader, Container, Dialog, DialogContent, DialogTitle, Grid, GridList, GridListTile, IconButton, Paper, TextField, CardActions } from '@material-ui/core';
-import DeleteIcon from '@material-ui/icons/Delete';
+import { Box, Container, Dialog, DialogContent, DialogTitle, Grid, IconButton, TextField } from '@material-ui/core';
 import AddIcon from '@material-ui/icons/Add';
-import DoneIcon from '@material-ui/icons/Done';
-import EditIcon from '@material-ui/icons/Edit';
-import ErrorIcon from '@material-ui/icons/Error';
 import CheckedIcon from '@material-ui/icons/CheckBox';
 import UncheckedIcon from '@material-ui/icons/CropSquare';
-import React, { Fragment } from 'react';
+import DeleteIcon from '@material-ui/icons/Delete';
+import DoneIcon from '@material-ui/icons/Done';
+import ErrorIcon from '@material-ui/icons/Error';
+import UndoIcon from '@material-ui/icons/Undo';
+import React from 'react';
 import { render } from 'react-dom';
 import 'typeface-roboto';
-import { WithFallback } from './util';
 import * as STATE from './state';
 import { State } from './state';
+import { WithFallback } from './util';
 
 type Record = { text: string, checked: boolean }
 type Records = Record[]
+type RecordId = keyof Records & number
+type Selection = RecordId | undefined
+type RecordListState = State<{ records: Records, selection: Selection }>
 
 const ErrorMessage = ({ error }: { error: Error }) => (
   <Dialog open={true} >
@@ -36,114 +39,129 @@ const ErrorMessage = ({ error }: { error: Error }) => (
   </Dialog>
 )
 
-type RecordProps = {
-  state: State<Record>
-  onDelete: () => void
-}
-
-const RecordViewCard = ({ record, onEdit, onDelete, onToggle }) => (
-  <Card>
-    <CardHeader
-      avatar={
-        record.checked ? (
-          <CheckedIcon onClick={() => onToggle()} />
-        ) : (
-            <UncheckedIcon onClick={() => onToggle()} />
-          )
-      }
-      title={<Box onClick={() => onToggle()}>{record.text}</Box>}
-      action={
-        <ButtonGroup>
-          <IconButton onClick={() => onEdit()}>
-            <EditIcon />
-          </IconButton>
-          <IconButton onClick={() => onDelete()}>
-            <DeleteIcon />
-          </IconButton>
-        </ButtonGroup>
-      }
-    />
-  </Card>
+const List = ({ children }) => (
+  <Grid container direction="column">
+    {children}
+  </Grid>
 )
 
-const RecordEditCard = ({ record: { text, checked }, onComplete, icon }) => {
-  const inputRef = React.createRef()
-  return (
-    <Card>
-      <CardHeader
-        title={
-          <TextField multiline defaultValue={text} fullWidth inputRef={inputRef}
-            onChange={({ target: { value } }) => text = value} />
-        }
-        action={(
-          <IconButton onClick={() => {
-            inputRef.current.value = "";
-            onComplete({ text, checked })
-          }}>
-            {icon}
-          </IconButton>
-        )}
-      />
-    </Card>
-  )
-}
+const ListItem = ({ children }) => (
+  <Grid item container direction="row" alignItems="center">
+    {children}
+  </Grid>
+)
 
-const Record = ({ state: recordState, onDelete }: RecordProps) => {
-  const editState = STATE.define(false)
-  const state = STATE.compose({
-    edit: editState,
-    record: recordState
-  })
+type RecordListHeaderProps = { state: RecordListState }
+const RecordListHeader = ({ state }: RecordListHeaderProps) => {
+  let text = ""
+  const {
+    records: recordsState,
+  } = state.explode()
   return (
     <state.Fragment>
-      {({ record, edit }) => record && (
-        edit ? (
-          <RecordEditCard record={record} icon={<DoneIcon />}
-            onComplete={(record: Record) => state.set({ record, edit: false })} />
+      {({ selection, records }) => {
+        const undoText = selection === undefined ? undefined : records[selection].text
+        return selection === undefined ? (
+          <ListItem>
+            <Grid item xs>
+              <TextField fullWidth onChange={({ target: { value } }) => text = value} />
+            </Grid>
+            <Grid item>
+              <IconButton onClick={() => records.push({ text, checked: false }) && recordsState.set(records)}>
+                <AddIcon />
+              </IconButton>
+            </Grid>
+          </ListItem>
         ) : (
-            <RecordViewCard record={record}
-              onEdit={() => editState.set(true)}
-              onDelete={onDelete}
-              onToggle={() => {
-                const state = STATE.extract(recordState, "checked")
-                state.set(!state.value())
-              }}
-            />
+            <Grid item container justify="flex-end">
+              <Grid item>
+                <IconButton onClick={() => {
+                  records[selection].text = undoText;
+                  state.set({ records, selection: undefined })
+                }}>
+                  <UndoIcon />
+                </IconButton>
+              </Grid>
+            </Grid>
           )
-      ) || null}
+      }}
     </state.Fragment>
   )
 }
 
-const Records = ({ state }: { state: State<Records> }) => (
-  <Paper>
-    <Grid container>
-      <Grid item xs={12}>
-        <RecordEditCard record={{ text: "", checked: false }} icon={<AddIcon />}
-          onComplete={(record: Record) => {
-            const value = state.value() || []
-            value.push(record)
-            state.set(value)
-          }} />
-      </Grid>
+type RecordListItemProps = {
+  state: RecordListState
+  item: number
+}
+const RecordListItem = ({ state, item }: RecordListItemProps) => {
+  const {
+    records: recordsState,
+    selection: selectionState
+  } = state.explode()
+  const recordState = recordsState.explode()[item]
+  const {
+    text: recordTextState,
+    checked: recordCheckedState
+  } = recordState.explode();
+  return (
+    <state.Fragment>
+      {({ records, selection }) =>
+        <ListItem>
+          <Grid item>
+            <IconButton onClick={() => recordCheckedState.set(!records[item].checked)}>
+              {records[item].checked ? <CheckedIcon /> : <UncheckedIcon />}
+            </IconButton>
+          </Grid>
+          <Grid item xs onClick={() => selectionState.set(item)}>
+            {selection === item ? (
+              <TextField fullWidth
+                defaultValue={records[item].text}
+                onChange={({ target: { value } }) => records[item].text = value} />
+            ) : records[item].text}
+          </Grid>
+          <Grid item>
+            {selection === item ? (
+              <IconButton onClick={() => recordTextState.set(records[item].text)
+                && selectionState.set(undefined)}>
+                <DoneIcon />
+              </IconButton>
+            ) : (
+                <IconButton onClick={() => records.splice(item, 1) && recordsState.set(records)} >
+                  <DeleteIcon />
+                </IconButton>
+              )}
+          </Grid>
+        </ListItem>
+      }
+    </state.Fragment>
+  )
+}
+
+const Records = ({ state: recordsState }: { state: State<Records> }) => {
+  const selectionState = STATE.define<Selection>()
+  const state = STATE.compose({
+    records: recordsState,
+    selection: selectionState
+  })
+  return (
+    <List>
+      <ListItem>
+        <RecordListHeader state={state} />
+      </ListItem>
       <state.Fragment>
-        {(records) => records && Object.keys(records)
-          .map(key => (
-            <Grid item xs={12} key={key}>
-              <Record state={STATE.extract<Records>(state, +key) as State<Record>}
-                onDelete={() => { records.splice(+key, 1); state.set(records) }} />
-            </Grid>
-          )) || null}
+        {({ records }) => records.map((_, key) => (
+          <RecordListItem key={key} state={state} item={key} />
+        ))}
       </state.Fragment>
-    </Grid>
-  </Paper>
-)
+    </List>
+  )
+}
 
 render(
   (
     <WithFallback fallback={ErrorMessage}>
       <Container maxWidth="xs">
-        <Records state={STATE.define([
+        <Records state={STATE.define<Records>([
           { text: "buy milk", checked: false },
           { text: "pay rent", checked: true },
           { text: "get mail", checked: false }

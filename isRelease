@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+
+const package = JSON.parse(require('fs').readFileSync('package.json'))
+
+let code
+if (package.version.match(/.*-SNAPSHOT/)) {
+  code = 1
+} else {
+  code = 0
+}
+require('process').exit(code)

@@ -14,12 +14,14 @@ export interface State<T> {
   update: () => void
   listen: (observer: Observer<T>) => void
   value: () => T
+  explode: () => { [K in keyof T]: State<T[K]> }
 }
 
 type VersionState = { version: number }
 
 export function define<T>(initialValue?: T | Promise<T>): State<T> {
 
+  let initialized = false
   let version: number = 0
   let value: T
 
@@ -32,10 +34,11 @@ export function define<T>(initialValue?: T | Promise<T>): State<T> {
       constructor(props: ContinuationProps<T>) { super(props); }
       componentDidMount = () => { this.setState({ version }); components.push(this) }
       componentWillUnmount = () => components.splice(components.indexOf(this), 1)
-      render = () => this.props.children(value)
+      render = () => initialized && this.props.children(value) || null
     },
     set: async (newValue: T | Promise<T>) => {
       value = await newValue
+      initialized = true
       version++
       state.update()
     },
@@ -43,7 +46,8 @@ export function define<T>(initialValue?: T | Promise<T>): State<T> {
       components.forEach(component => component.setState({ version }))
       listeners.forEach(observe => observe(value))
     },
-    listen: (observer: Observer<T>) => listeners.push(observer)
+    listen: (observer: Observer<T>) => listeners.push(observer),
+    explode: () => explode(state)
   }
 
   state.set(initialValue)
@@ -52,15 +56,17 @@ export function define<T>(initialValue?: T | Promise<T>): State<T> {
 
 }
 
-export function compose<T>(states: { [K in keyof T]: State<T[K]> }): State<T> {
+type CompositeState<T> = { [K in keyof T]: State<T[K]> }
+
+export function compose<T>(composedStates: CompositeState<T>): State<T> {
 
   const compositeValue: T = Object.assign({}) // to avoid TS type complaint
 
   const state = define()
   const observers: Observer<T>[] = []
 
-  Object.keys(states)
-    .forEach(key => states[key].listen(
+  Object.keys(composedStates)
+    .forEach(key => composedStates[key].listen(
       (value: any) => {
         compositeValue[key] = value
         observers.forEach(observe => observe(compositeValue))
@@ -69,7 +75,7 @@ export function compose<T>(states: { [K in keyof T]: State<T[K]> }): State<T> {
     ))
 
 
-  return {
+  const compositeState = {
     Fragment: ({ children }: ContinuationProps<T>) => (
       <state.Fragment>
         {() => children(compositeValue)}
@@ -78,17 +84,29 @@ export function compose<T>(states: { [K in keyof T]: State<T[K]> }): State<T> {
     set: async (value: T | Promise<T>) => {
       Object.assign(compositeValue, await value)
       Object.keys(compositeValue)
-        .forEach(key => states[key].set(compositeValue[key]))
+        .forEach(key => composedStates[key].set(compositeValue[key]))
       state.update()
     },
     update: () => state.update(),
     listen: (observer: Observer<T>) => observers.push(observer),
-    value: () => compositeValue
+    value: () => compositeValue,
+    explode: () => composedStates
   }
+
+  return compositeState
 }
 
-export function extract<S, K extends keyof S = keyof S>(state: State<S>, key: K): State<S[K]> {
-  return {
+type ExplodedState<T> = { [K in keyof T]: State<T[K]> }
+
+function explode<T>(state: State<T>): ExplodedState<T> {
+  return new Proxy<State<T>>(
+    state,
+    { get: (__, key: keyof T) => extract(state, key) }
+  ) as unknown as ExplodedState<T>
+}
+
+function extract<S, K extends keyof S = keyof S>(state: State<S>, key: K): State<S[K]> {
+  const extractedState = {
     Fragment: ({ children }) => (
       <state.Fragment>
         {value => children(value[key])}
@@ -101,6 +119,9 @@ export function extract<S, K extends keyof S = keyof S>(state: State<S>, key: K)
     },
     update: () => state.update(),
     listen: listener => state.listen(value => listener(value[key])),
-    value: () => state.value() && (state.value()[key])
+    value: () => state.value() && (state.value()[key]),
+    explode: () => explode(extractedState)
   }
+
+  return extractedState
 }
