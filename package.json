@@ -1,6 +1,6 @@
 {
   "name": "freakt",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "scripts": {
     "start": "parcel src/todo.html",
     "postversion": "./isRelease && ./deploy || exit 0"
