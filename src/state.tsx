@@ -6,7 +6,8 @@ export interface ContinuationProps<T> {
   children: ContinuationChildren<T>
 }
 
-type Observer<T> = (value: T) => void
+type Observer<T> = (value: T) => Promise<void>
+type Writer<T> = (value: T) => Promise<T>
 
 export interface State<T> {
   Fragment: React.ElementType<ContinuationProps<T>>
@@ -19,7 +20,7 @@ export interface State<T> {
 
 type VersionState = { version: number }
 
-export function define<T>(initialValue?: T | Promise<T>): State<T> {
+export function define<T>(initialValue?: T | Promise<T>, persist?: Writer<T>): State<T> {
 
   let initialized = false
   let version: number = 0
@@ -37,7 +38,7 @@ export function define<T>(initialValue?: T | Promise<T>): State<T> {
       render = () => initialized && this.props.children(value) || null
     },
     set: async (newValue: T | Promise<T>) => {
-      value = await newValue
+      value = persist ? await persist(await newValue) : (await newValue)
       initialized = true
       version++
       state.update()
@@ -118,7 +119,7 @@ function extract<S, K extends keyof S = keyof S>(state: State<S>, key: K): State
       return state.set(Object.assign(state.value() || {}, tmp))
     },
     update: () => state.update(),
-    listen: listener => state.listen(value => listener(value[key])),
+    listen: (listener: Observer<S[K]>) => state.listen(value => listener(value[key])),
     value: () => state.value() && (state.value()[key]),
     explode: () => explode(extractedState)
   }

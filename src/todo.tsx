@@ -6,7 +6,7 @@ import DeleteIcon from '@material-ui/icons/Delete';
 import DoneIcon from '@material-ui/icons/Done';
 import ErrorIcon from '@material-ui/icons/Error';
 import UndoIcon from '@material-ui/icons/Undo';
-import React from 'react';
+import React, { RefObject } from 'react';
 import { render } from 'react-dom';
 import 'typeface-roboto';
 import * as STATE from './state';
@@ -53,10 +53,17 @@ const ListItem = ({ children }) => (
 
 type RecordListHeaderProps = { state: RecordListState }
 const RecordListHeader = ({ state }: RecordListHeaderProps) => {
-  let text = ""
   const {
     records: recordsState,
   } = state.explode()
+  function add(records: Records, field?: any) {
+    if (field.value) {
+      records.push({ text: field.value, checked: false })
+      field.value = ''
+      recordsState.set(records)
+    }
+  }
+  let textFieldTarget
   return (
     <state.Fragment>
       {({ selection, records }) => {
@@ -64,10 +71,18 @@ const RecordListHeader = ({ state }: RecordListHeaderProps) => {
         return selection === undefined ? (
           <ListItem>
             <Grid item xs>
-              <TextField fullWidth onChange={({ target: { value } }) => text = value} />
+              <TextField fullWidth
+                onKeyPress={({ key, target }) => {
+                  switch (key) {
+                    case "Enter":
+                      add(records, target)
+                    default:
+                      textFieldTarget = target
+                  }
+                }} />
             </Grid>
             <Grid item>
-              <IconButton onClick={() => records.push({ text, checked: false }) && recordsState.set(records)}>
+              <IconButton onClick={({ }) => add(records, textFieldTarget)}>
                 <AddIcon />
               </IconButton>
             </Grid>
@@ -149,9 +164,9 @@ const Records = ({ state: recordsState }: { state: State<Records> }) => {
         <RecordListHeader state={state} />
       </ListItem>
       <state.Fragment>
-        {({ records }) => records.map((_, key) => (
+        {({ records }) => records && records.map((_, key) => (
           <RecordListItem key={key} state={state} item={key} />
-        ))}
+        )) || null}
       </state.Fragment>
     </List>
   )
@@ -161,11 +176,16 @@ render(
   (
     <WithFallback fallback={ErrorMessage}>
       <Container maxWidth="xs">
-        <Records state={STATE.define<Records>([
-          { text: "buy milk", checked: false },
-          { text: "pay rent", checked: true },
-          { text: "get mail", checked: false }
-        ])} />
+        <Records state={STATE.define<Records>(
+          localStorage.getItem('records') && JSON.parse(localStorage.getItem('records'))
+          || [
+            { text: "buy milk", checked: false },
+            { text: "pay rent", checked: true },
+            { text: "get mail", checked: false }
+          ], async (records) => {
+            localStorage['records'] = JSON.stringify(records)
+            return records
+          })} />
       </Container>
     </WithFallback >
   ),
