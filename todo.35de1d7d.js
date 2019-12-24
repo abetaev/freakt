@@ -81877,17 +81877,17 @@ function define(initial, persist) {
           return components.splice(components.indexOf(_this), 1);
         };
 
-        _this.render = function () {
-          try {
-            return initialized ? _this.props.children(_value) : null;
-          } catch (_a) {
-            state.reset();
-            return null;
-          }
-        };
-
         return _this;
       }
+
+      class_1.prototype.render = function () {
+        try {
+          return initialized ? this.props.children(_value) : null;
+        } catch (_a) {
+          state.reset();
+          return null;
+        }
+      };
 
       return class_1;
     }(react_1.default.Component),
@@ -82662,7 +82662,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34153" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36239" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
