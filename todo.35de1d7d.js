@@ -81844,16 +81844,15 @@ Object.defineProperty(exports, "__esModule", {
 
 var react_1 = __importDefault(require("react"));
 
-function define(initialValue, persist) {
+function define(initial, persist) {
   var _this = this;
 
   var initialized = false;
   var version = 0;
-
-  var _value;
-
+  var _value = undefined;
   var components = [];
   var listeners = [];
+  var init = typeof initial === 'function' ? initial : undefined;
   var state = {
     value: function value() {
       return _value;
@@ -81879,7 +81878,12 @@ function define(initialValue, persist) {
         };
 
         _this.render = function () {
-          return initialized && _this.props.children(_value) || null;
+          try {
+            return initialized ? _this.props.children(_value) : null;
+          } catch (_a) {
+            state.reset();
+            return null;
+          }
         };
 
         return _this;
@@ -81924,13 +81928,22 @@ function define(initialValue, persist) {
 
             case 5:
               _value = _a;
-              initialized = true;
               version++;
               state.update();
+              initialized = true;
               return [2
               /*return*/
               ];
           }
+        });
+      });
+    },
+    reset: function reset() {
+      return __awaiter(_this, void 0, void 0, function () {
+        return __generator(this, function (_a) {
+          return [2
+          /*return*/
+          , init ? state.set(init()) : undefined];
         });
       });
     },
@@ -81951,7 +81964,7 @@ function define(initialValue, persist) {
       return _explode(state);
     }
   };
-  state.set(initialValue);
+  state.set(init ? init(undefined) : initial);
   return state;
 }
 
@@ -81962,7 +81975,22 @@ function compose(composedStates) {
 
   var compositeValue = Object.assign({}); // to avoid TS type complaint
 
-  var state = define();
+  function reset() {
+    return __awaiter(this, void 0, void 0, function () {
+      return __generator(this, function (_a) {
+        Object.values(composedStates).forEach(function (state) {
+          return state.reset();
+        });
+        return [2
+        /*return*/
+        ];
+      });
+    });
+  }
+
+  var state = define(function () {
+    return reset();
+  });
   var observers = [];
   Object.keys(composedStates).forEach(function (key) {
     return composedStates[key].listen(function (value) {
@@ -82007,6 +82035,7 @@ function compose(composedStates) {
         });
       });
     },
+    reset: reset,
     update: function update() {
       return state.update();
     },
@@ -82065,6 +82094,9 @@ function extract(state, key) {
           }
         });
       });
+    },
+    reset: function reset() {
+      return state.reset();
     },
     update: function update() {
       return state.update();
@@ -82412,20 +82444,24 @@ var ListItem = function ListItem(_a) {
 
 var RecordListHeader = function RecordListHeader(_a) {
   var state = _a.state;
-  var recordsState = state.explode().records;
 
-  function add(records, field) {
-    if (field.value) {
+  var _b = state.explode(),
+      recordsState = _b.records,
+      selectionState = _b.selection;
+
+  var ref = react_1.default.createRef();
+
+  function add(records) {
+    if (ref.current.value) {
       records.push({
-        text: field.value,
+        text: ref.current.value,
         checked: false
       });
-      field.value = '';
+      ref.current.value = '';
       recordsState.set(records);
     }
   }
 
-  var textFieldTarget;
   return react_1.default.createElement(state.Fragment, null, function (_a) {
     var selection = _a.selection,
         records = _a.records;
@@ -82435,23 +82471,30 @@ var RecordListHeader = function RecordListHeader(_a) {
       xs: true
     }, react_1.default.createElement(core_1.TextField, {
       fullWidth: true,
-      onKeyPress: function onKeyPress(_a) {
-        var key = _a.key,
-            target = _a.target;
+      autoFocus: true,
+      inputRef: ref,
+      onKeyDown: function onKeyDown(_a) {
+        var key = _a.key;
 
         switch (key) {
-          case "Enter":
-            add(records, target);
+          case 'ArrowDown':
+            selectionState.set(0);
+            break;
 
-          default:
-            textFieldTarget = target;
+          case 'ArrowUp':
+            selectionState.set(records.length - 1);
+            break;
+
+          case 'Enter':
+            add(records);
+            break;
         }
       }
     })), react_1.default.createElement(core_1.Grid, {
       item: true
     }, react_1.default.createElement(core_1.IconButton, {
       onClick: function onClick(_a) {
-        return add(records, textFieldTarget);
+        return add(records);
       }
     }, react_1.default.createElement(Add_1.default, null)))) : react_1.default.createElement(core_1.Grid, {
       item: true,
@@ -82485,6 +82528,26 @@ var RecordListItem = function RecordListItem(_a) {
       recordTextState = _c.text,
       recordCheckedState = _c.checked;
 
+  function handleKeyPress(key) {
+    switch (key) {
+      case 'Enter':
+        recordTextState.set(ref.current.value);
+
+      case 'Escape':
+        selectionState.set(undefined);
+        break;
+
+      case 'ArrowDown':
+        selectionState.set(item + 1);
+        break;
+
+      case 'ArrowUp':
+        selectionState.set(item - 1);
+        break;
+    }
+  }
+
+  var ref = react_1.default.createRef();
   return react_1.default.createElement(state.Fragment, null, function (_a) {
     var records = _a.records,
         selection = _a.selection;
@@ -82502,16 +82565,18 @@ var RecordListItem = function RecordListItem(_a) {
       }
     }, selection === item ? react_1.default.createElement(core_1.TextField, {
       fullWidth: true,
+      autoFocus: true,
+      inputRef: ref,
       defaultValue: records[item].text,
-      onChange: function onChange(_a) {
-        var value = _a.target.value;
-        return records[item].text = value;
+      onKeyDown: function onKeyDown(_a) {
+        var key = _a.key;
+        return handleKeyPress(key);
       }
     }) : records[item].text), react_1.default.createElement(core_1.Grid, {
       item: true
     }, selection === item ? react_1.default.createElement(core_1.IconButton, {
       onClick: function onClick() {
-        return recordTextState.set(records[item].text) && selectionState.set(undefined);
+        return handleKeyPress('Enter');
       }
     }, react_1.default.createElement(Done_1.default, null)) : react_1.default.createElement(core_1.IconButton, {
       onClick: function onClick() {
@@ -82523,7 +82588,9 @@ var RecordListItem = function RecordListItem(_a) {
 
 var Records = function Records(_a) {
   var recordsState = _a.state;
-  var selectionState = STATE.define();
+  var selectionState = STATE.define(function () {
+    return undefined;
+  });
   var state = STATE.compose({
     records: recordsState,
     selection: selectionState
@@ -82595,7 +82662,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34087" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34153" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
