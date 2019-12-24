@@ -6,7 +6,7 @@ import DeleteIcon from '@material-ui/icons/Delete';
 import DoneIcon from '@material-ui/icons/Done';
 import ErrorIcon from '@material-ui/icons/Error';
 import UndoIcon from '@material-ui/icons/Undo';
-import React, { RefObject } from 'react';
+import React from 'react';
 import { render } from 'react-dom';
 import 'typeface-roboto';
 import * as STATE from './state';
@@ -55,15 +55,16 @@ type RecordListHeaderProps = { state: RecordListState }
 const RecordListHeader = ({ state }: RecordListHeaderProps) => {
   const {
     records: recordsState,
+    selection: selectionState
   } = state.explode()
-  function add(records: Records, field?: any) {
-    if (field.value) {
-      records.push({ text: field.value, checked: false })
-      field.value = ''
+  const ref = React.createRef<HTMLInputElement>()
+  function add(records: Records) {
+    if (ref.current.value) {
+      records.push({ text: ref.current.value, checked: false })
+      ref.current.value = ''
       recordsState.set(records)
     }
   }
-  let textFieldTarget
   return (
     <state.Fragment>
       {({ selection, records }) => {
@@ -71,18 +72,23 @@ const RecordListHeader = ({ state }: RecordListHeaderProps) => {
         return selection === undefined ? (
           <ListItem>
             <Grid item xs>
-              <TextField fullWidth
-                onKeyPress={({ key, target }) => {
+              <TextField fullWidth autoFocus inputRef={ref}
+                onKeyDown={({ key }) => {
                   switch (key) {
-                    case "Enter":
-                      add(records, target)
-                    default:
-                      textFieldTarget = target
+                    case 'ArrowDown':
+                      selectionState.set(0)
+                      break;
+                    case 'ArrowUp':
+                      selectionState.set(records.length - 1)
+                      break;
+                    case 'Enter':
+                      add(records)
+                      break;
                   }
                 }} />
             </Grid>
             <Grid item>
-              <IconButton onClick={({ }) => add(records, textFieldTarget)}>
+              <IconButton onClick={({ }) => add(records)}>
                 <AddIcon />
               </IconButton>
             </Grid>
@@ -118,6 +124,22 @@ const RecordListItem = ({ state, item }: RecordListItemProps) => {
     text: recordTextState,
     checked: recordCheckedState
   } = recordState.explode();
+  function handleKeyPress(key) {
+    switch (key) {
+      case 'Enter':
+        recordTextState.set(ref.current.value)
+      case 'Escape':
+        selectionState.set(undefined)
+        break;
+      case 'ArrowDown':
+        selectionState.set(item + 1)
+        break;
+      case 'ArrowUp':
+        selectionState.set(item - 1)
+        break;
+    }
+  }
+  const ref = React.createRef<HTMLInputElement>()
   return (
     <state.Fragment>
       {({ records, selection }) =>
@@ -129,15 +151,14 @@ const RecordListItem = ({ state, item }: RecordListItemProps) => {
           </Grid>
           <Grid item xs onClick={() => selectionState.set(item)}>
             {selection === item ? (
-              <TextField fullWidth
+              <TextField fullWidth autoFocus inputRef={ref}
                 defaultValue={records[item].text}
-                onChange={({ target: { value } }) => records[item].text = value} />
+                onKeyDown={({ key }) => handleKeyPress(key)} />
             ) : records[item].text}
           </Grid>
           <Grid item>
             {selection === item ? (
-              <IconButton onClick={() => recordTextState.set(records[item].text)
-                && selectionState.set(undefined)}>
+              <IconButton onClick={() => handleKeyPress('Enter')}>
                 <DoneIcon />
               </IconButton>
             ) : (
@@ -153,7 +174,7 @@ const RecordListItem = ({ state, item }: RecordListItemProps) => {
 }
 
 const Records = ({ state: recordsState }: { state: State<Records> }) => {
-  const selectionState = STATE.define<Selection>()
+  const selectionState = STATE.define<Selection>(() => undefined)
   const state = STATE.compose({
     records: recordsState,
     selection: selectionState

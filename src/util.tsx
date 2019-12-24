@@ -1,4 +1,4 @@
-import React, { ErrorInfo, ReactNode } from 'react'
+import React, { ErrorInfo, ReactNode, Children } from 'react'
 
 export class WithFallback
   extends React.Component<{

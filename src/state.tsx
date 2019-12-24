@@ -8,26 +8,34 @@ export interface ContinuationProps<T> {
 
 type Observer<T> = (value: T) => Promise<void>
 type Writer<T> = (value: T) => Promise<T>
+type ExplodedState<T> = { [K in keyof T]: State<T[K]> }
 
 export interface State<T> {
   Fragment: React.ElementType<ContinuationProps<T>>
   set: (value: T | Promise<T>) => Promise<void>
   update: () => void
+  reset: () => Promise<void>
   listen: (observer: Observer<T>) => void
   value: () => T
-  explode: () => { [K in keyof T]: State<T[K]> }
+  explode: () => ExplodedState<T>
 }
 
 type VersionState = { version: number }
 
-export function define<T>(initialValue?: T | Promise<T>, persist?: Writer<T>): State<T> {
+type Value<T> = T | Promise<T>
+type ValueProvider<T> = (current?: T) => Value<T>
+
+export function define<T>(initial?: Value<T> | ValueProvider<T>, persist?: Writer<T>): State<T> {
 
   let initialized = false
   let version: number = 0
-  let value: T
+  let value: T | undefined = undefined
 
   const components: React.Component<ContinuationProps<T>, VersionState>[] = []
   const listeners: Observer<T>[] = []
+
+  const init: ValueProvider<T> | undefined =
+    typeof initial === 'function' ? (initial as ValueProvider<T>) : undefined
 
   const state: State<T> = {
     value: () => value,
@@ -35,14 +43,22 @@ export function define<T>(initialValue?: T | Promise<T>, persist?: Writer<T>): S
       constructor(props: ContinuationProps<T>) { super(props); }
       componentDidMount = () => { this.setState({ version }); components.push(this) }
       componentWillUnmount = () => components.splice(components.indexOf(this), 1)
-      render = () => initialized && this.props.children(value) || null
+      render() {
+        try {
+          return initialized ? this.props.children(value) : null
+        } catch {
+          state.reset()
+          return null
+        }
+      }
     },
     set: async (newValue: T | Promise<T>) => {
       value = persist ? await persist(await newValue) : (await newValue)
-      initialized = true
       version++
       state.update()
+      initialized = true
     },
+    reset: async () => init ? state.set(init()) : undefined,
     update: () => {
       components.forEach(component => component.setState({ version }))
       listeners.forEach(observe => observe(value))
@@ -51,7 +67,7 @@ export function define<T>(initialValue?: T | Promise<T>, persist?: Writer<T>): S
     explode: () => explode(state)
   }
 
-  state.set(initialValue)
+  state.set(init ? init(undefined) : (initial as Value<T>))
 
   return state
 
@@ -63,7 +79,11 @@ export function compose<T>(composedStates: CompositeState<T>): State<T> {
 
   const compositeValue: T = Object.assign({}) // to avoid TS type complaint
 
-  const state = define()
+  async function reset() {
+    Object.values(composedStates).forEach((state: State<any>) => state.reset())
+  }
+
+  const state = define(() => reset())
   const observers: Observer<T>[] = []
 
   Object.keys(composedStates)
@@ -88,6 +108,7 @@ export function compose<T>(composedStates: CompositeState<T>): State<T> {
         .forEach(key => composedStates[key].set(compositeValue[key]))
       state.update()
     },
+    reset,
     update: () => state.update(),
     listen: (observer: Observer<T>) => observers.push(observer),
     value: () => compositeValue,
@@ -96,8 +117,6 @@ export function compose<T>(composedStates: CompositeState<T>): State<T> {
 
   return compositeState
 }
-
-type ExplodedState<T> = { [K in keyof T]: State<T[K]> }
 
 function explode<T>(state: State<T>): ExplodedState<T> {
   return new Proxy<State<T>>(
@@ -118,6 +137,7 @@ function extract<S, K extends keyof S = keyof S>(state: State<S>, key: K): State
       tmp[key] = await value
       return state.set(Object.assign(state.value() || {}, tmp))
     },
+    reset: () => state.reset(),
     update: () => state.update(),
     listen: (listener: Observer<S[K]>) => state.listen(value => listener(value[key])),
     value: () => state.value() && (state.value()[key]),
