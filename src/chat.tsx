@@ -21,7 +21,7 @@ const MessageList = ({ state }) => (
         <Paper style={{ backgroundColor: from === localId ? iColor : uColor }} key={key}>
           <Grid container>
             <Grid item><Typography style={{ fontWeight: "bold" }}>{
-            from === localId ? "i" : "u"
+              from === localId ? "i" : "u"
             }:</Typography></Grid>
             <Grid item>{body}</Grid>
           </Grid>
@@ -49,26 +49,21 @@ const MessageInput = ({ conn }) => {
   )
 }
 
-peer.on("connection", conn => {
+const ChatView = ({ conn }: { conn: Peer.DataConnection }) => {
+  const state = STATE.define(false)
+
+  conn.on("open", () => state.set(true))
   conn.on("data", data => {
     chatState.value().push({ from: conn.peer, body: data })
     chatState.update()
   })
-})
 
-const ChatView = ({ remoteId }) => {
-  const conn = peer.connect(remoteId)
-  const state = STATE.define(false)
-
-  conn.on("open", () => state.set(true))
-
-  console.log(remoteId)
   return (
     <state.Fragment>
       {open => (
         <Grid container alignItems="flex-end">
           <Grid item xs={12}>
-            remote id: {remoteId}
+            remote id: {conn.peer}
           </Grid>
           <Grid item xs={12}>
             <MessageList state={chatState} />
@@ -84,21 +79,26 @@ const ChatView = ({ remoteId }) => {
   )
 }
 
-const RemoteSelect = ({ state }: { state: State<string> }) => {
+const RemoteSelect = ({ state }: { state: State<Peer.DataConnection> }) => {
   return (
     <TextField fullWidth autoFocus
       style={{ backgroundColor: uColor }}
-      onKeyDown={({ target, key }) => {
+      onKeyDown={({ target: { value }, key }) => {
         if (key === "Enter") {
-          const { value } = target
-          state.set(value)
+          const conn = peer.connect(value)
+          state.set(conn)
         }
       }} />
   )
 }
 
 export default () => {
-  const state = STATE.define()
+  const state = STATE.define<Peer.DataConnection>()
+
+  peer.on("connection", conn => {
+    state.set(conn)
+  })
+
   return (
     <Grid container>
       <Grid item xs={12}>
@@ -106,8 +106,8 @@ export default () => {
       </Grid>
       <Grid item xs={12}>
         <state.Fragment>
-          {remoteId => remoteId ? (
-            <ChatView remoteId={remoteId} />
+          {conn => conn ? (
+            <ChatView conn={conn} />
           ) : (
               <RemoteSelect state={state} />
             )}
