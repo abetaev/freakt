@@ -1,6 +1,6 @@
 {
   "name": "freakt",
-  "version": "0.2.0-UP",
+  "version": "0.2.1",
   "scripts": {
     "clean": "git clean -fdx",
     "build": "parcel build src/index.html --public-url ${npm_package_deploy_publicUrl}",
