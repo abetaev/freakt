@@ -55,8 +55,8 @@ export function define<T>(initial?: Value<T> | ValueProvider<T>, persist?: Write
     set: async (newValue: T | Promise<T>) => {
       value = persist ? await persist(await newValue) : (await newValue)
       version++
-      state.update()
       initialized = true
+      state.update()
     },
     reset: async () => init ? state.set(init()) : undefined,
     update: () => {

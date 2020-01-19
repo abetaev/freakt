@@ -1,4 +1,4 @@
-import { Box, Container, Dialog, DialogContent, DialogTitle, Grid, IconButton, TextField } from '@material-ui/core';
+import { Box, Dialog, DialogContent, DialogTitle, Grid, IconButton, TextField } from '@material-ui/core';
 import AddIcon from '@material-ui/icons/Add';
 import CheckedIcon from '@material-ui/icons/CheckBox';
 import UncheckedIcon from '@material-ui/icons/CropSquare';
@@ -7,11 +7,9 @@ import DoneIcon from '@material-ui/icons/Done';
 import ErrorIcon from '@material-ui/icons/Error';
 import UndoIcon from '@material-ui/icons/Undo';
 import React from 'react';
-import { render } from 'react-dom';
 import 'typeface-roboto';
 import * as STATE from './state';
 import { State } from './state';
-import { WithFallback } from './util';
 
 type Record = { text: string, checked: boolean }
 type Records = Record[]
@@ -193,22 +191,15 @@ const Records = ({ state: recordsState }: { state: State<Records> }) => {
   )
 }
 
-render(
-  (
-    <WithFallback fallback={ErrorMessage}>
-      <Container maxWidth="xs">
-        <Records state={STATE.define<Records>(
-          localStorage.getItem('records') && JSON.parse(localStorage.getItem('records'))
-          || [
-            { text: "buy milk", checked: false },
-            { text: "pay rent", checked: true },
-            { text: "get mail", checked: false }
-          ], async (records) => {
-            localStorage['records'] = JSON.stringify(records)
-            return records
-          })} />
-      </Container>
-    </WithFallback >
-  ),
-  document.getElementById("app")
+export default () => (
+  <Records state={STATE.define<Records>(
+    localStorage.getItem('records') && JSON.parse(localStorage.getItem('records'))
+    || [
+      { text: "buy milk", checked: false },
+      { text: "pay rent", checked: true },
+      { text: "get mail", checked: false }
+    ], async (records) => {
+      localStorage['records'] = JSON.stringify(records)
+      return records
+    })} />
 )

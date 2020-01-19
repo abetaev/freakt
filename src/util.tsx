@@ -1,7 +1,7 @@
-import React, { ErrorInfo, ReactNode, Children } from 'react'
+import { Component, ErrorInfo, ReactNode } from 'react'
 
 export class WithFallback
-  extends React.Component<{
+  extends Component<{
     children: ReactNode,
     fallback: ({ error }: { error: Error }) => ReactNode
   }, { error: Error }> {
@@ -42,4 +42,8 @@ export function ppln<T extends {}>(value: T): Pipeline<T> {
       }
     }
   ) as unknown as Pipeline<T>
+}
+
+export function argp(name: string): string | null {
+  return new URL(document.URL).searchParams.get(name)
 }

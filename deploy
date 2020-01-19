@@ -17,11 +17,12 @@ getProperty() {
 }
 
 VERSION="$(git describe)"
-PUBLIC_URL="$(getProperty deploy.publicUrl)"
+# PUBLIC_URL="$(getProperty deploy.publicUrl)"
 MESSAGE="deployment of ${VERSION} to ${PUBLIC_URL}"
 
+npm run clean
 npm ci
-npx parcel build src/todo.html --public-url "${PUBLIC_URL}"
+npm run build
 git checkout gh-pages
 rm * 1>&2 2>/dev/null || echo -n ''
 cp dist/* ./
