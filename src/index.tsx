@@ -1,7 +1,8 @@
 import React from "react"
 
-import todo from "./todo"
-import chat from "./chat"
+import todo from "./apps/todo"
+import chat from "./apps/chat"
+import comm from "./apps/comm"
 import { argp } from "./util"
 import { Container } from "@material-ui/core"
 import { WithFallback } from "./util"
@@ -10,7 +11,8 @@ import { render } from "react-dom"
 
 const apps = {
   todo,
-  chat
+  chat,
+  comm
 }
 
 const app = argp("app")
@@ -19,9 +21,7 @@ const App = apps[app ? app : "todo"]
 render(
   (
     <WithFallback fallback={ErrorMessage}>
-      <Container maxWidth="xs">
-        {App ? <App /> : "no such application"}
-      </Container>
+      {App ? <App /> : "no such application"}
     </WithFallback >
   ),
   document.getElementById("app")

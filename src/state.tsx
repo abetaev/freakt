@@ -46,7 +46,8 @@ export function define<T>(initial?: Value<T> | ValueProvider<T>, persist?: Write
       render() {
         try {
           return initialized ? this.props.children(value) : null
-        } catch {
+        } catch (error) {
+          // console.log(error)
           state.reset()
           return null
         }
@@ -79,21 +80,31 @@ export function compose<T>(composedStates: CompositeState<T>): State<T> {
 
   const compositeValue: T = Object.assign({}) // to avoid TS type complaint
 
+  Object.keys(composedStates)
+    .forEach(key => compositeValue[key] = {})
+    console.log(composedStates)
+
   async function reset() {
-    Object.values(composedStates).forEach((state: State<any>) => state.reset())
+    Promise.all(
+      Object.values(composedStates)
+        .map((state: State<any>) => state.reset())
+    )
   }
 
   const state = define(() => reset())
   const observers: Observer<T>[] = []
 
   Object.keys(composedStates)
-    .forEach(key => composedStates[key].listen(
-      (value: any) => {
-        compositeValue[key] = value
-        observers.forEach(observe => observe(compositeValue))
-        state.update()
-      }
-    ))
+    .forEach(key => {
+      compositeValue[key] = state.value()
+      composedStates[key].listen(
+        (value: any) => {
+          compositeValue[key] = value
+          observers.forEach(observe => observe(compositeValue))
+          state.update()
+        }
+      )
+    })
 
 
   const compositeState = {

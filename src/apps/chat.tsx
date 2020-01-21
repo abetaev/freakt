@@ -1,9 +1,9 @@
-import { Grid, Paper, TextField, Typography } from "@material-ui/core";
+import { Grid, Paper, TextField, Typography, Container } from "@material-ui/core";
 import Peer from "peerjs";
 import React from "react";
 import { v4 as uuid } from "uuid";
-import * as STATE from "./state";
-import { State } from "./state";
+import * as STATE from "../state";
+import { State } from "../state";
 
 const localId = uuid()
 const peer = new Peer(localId)
@@ -100,19 +100,21 @@ export default () => {
   })
 
   return (
-    <Grid container>
-      <Grid item xs={12}>
-        your id: {localId}
+    <Container maxWidth="sm">
+      <Grid container>
+        <Grid item xs={12}>
+          your id: {localId}
+        </Grid>
+        <Grid item xs={12}>
+          <state.Fragment>
+            {conn => conn ? (
+              <ChatView conn={conn} />
+            ) : (
+                <RemoteSelect state={state} />
+              )}
+          </state.Fragment>
+        </Grid>
       </Grid>
-      <Grid item xs={12}>
-        <state.Fragment>
-          {conn => conn ? (
-            <ChatView conn={conn} />
-          ) : (
-              <RemoteSelect state={state} />
-            )}
-        </state.Fragment>
-      </Grid>
-    </Grid>
+    </Container>
   )
 }
