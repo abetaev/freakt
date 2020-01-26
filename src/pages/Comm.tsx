@@ -76,8 +76,8 @@ class Comm extends Component {
             call.on("stream", stream => {
                 // @ts-ignore
                 this.comm[call.peer] = stream;
-                this.setState({ comm: this.comm });
                 // state.set({ network: this.network, comm: this.comm })
+                this.setState({ comm: this.comm });
             })
         });
 
@@ -86,7 +86,6 @@ class Comm extends Component {
         this.comm[this.network.peer.id] = stream;
 
         //await state.set({ })
-
         this.setState({ isSelfConnected: true, network: this.network, comm: this.comm });
     }
 
