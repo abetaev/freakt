@@ -1,8 +1,19 @@
-import React, { Component } from 'react';
+import React, {Component, RefObject} from 'react';
 import Peer from 'peerjs';
-import { Paper, TextField, Button, Card, CardMedia, CardActions, CardContent, Container, IconButton } from '@material-ui/core'
-import PauseIcon from '@material-ui/icons/Pause'
-import PlayIcon from '@material-ui/icons/PlayArrow'
+import {
+    Paper,
+    TextField,
+    Button,
+    Card,
+    CardMedia,
+    CardActions,
+    CardContent,
+    Container,
+    IconButton,
+    Chip,
+    Avatar
+} from '@material-ui/core';
+// import { Pause, PlayIcon }from '@material-ui/icons';
 import copy from 'copy-to-clipboard';
 import './Comm.scss';
 
@@ -28,6 +39,7 @@ import {
     IonFabButton
 } from "@ionic/react";
 
+
 interface CommI { [identity: string]: MediaStream }
 type Network = {
     peer: Peer
@@ -39,6 +51,7 @@ const cs = window.crypto.subtle;
 class Comm extends Component {
 
     private comm: CommI = {};
+    private videos: { [identity: string]: RefObject<any> } = {};
     private network: Network;
 
     constructor(props: any) {
@@ -51,6 +64,7 @@ class Comm extends Component {
         this.init();
     }
 
+    isLocalIdentity(identity: String) { return this.network != null && identity === this.network.peer.id; }
 
     async init() {
         const keyPair = await cs.generateKey(
@@ -76,8 +90,8 @@ class Comm extends Component {
             call.on("stream", stream => {
                 // @ts-ignore
                 this.comm[call.peer] = stream;
-                // state.set({ network: this.network, comm: this.comm })
                 this.setState({ comm: this.comm });
+                // state.set({ network: this.network, comm: this.comm })
             })
         });
 
@@ -85,7 +99,6 @@ class Comm extends Component {
         // @ts-ignore
         this.comm[this.network.peer.id] = stream;
 
-        //await state.set({ })
         this.setState({ isSelfConnected: true, network: this.network, comm: this.comm });
     }
 
@@ -97,12 +110,87 @@ class Comm extends Component {
 
         return (
             <IonPage>
+                <Container className="ion-padding">
+                    <Chip avatar={<Avatar>I</Avatar>}
+                          label={!isIdCopied ? this.network.peer.id:'Copied in clipboard'}
+                          onClick={()=> {
+                        // @ts-ignore
+                        copy(this.network.peer.id, {
+                            debug: true,
+                            message: 'Press #{key} to copy',
+                        });
+                        this.setState({ isIdCopied: true });
+                        setTimeout(()=>{
+                            this.setState({ isIdCopied: false });
+                        }, 2000);
+                    }}/>
+                    <IonItem>
+                        <IonLabel position="floating">Enter User-Id to Call</IonLabel>
+                        <IonInput onKeyPress={({key, target}) => {
+                            if (key === "Enter") {
+                                // @ts-ignore
+                                const identity: string = target['value']
+                                // @ts-ignore
+                                const call = this.network.peer.call(identity, this.comm[this.network.peer.id])
+                                call.on('stream', (stream: any) => {
+                                    // @ts-ignore
+                                    this.comm[identity] = stream
+                                    this.setState({ comm: this.comm });
+                                })
+                            }
+                        }}/>
+                    </IonItem>
+                    {Object.keys(this.comm)
+                        .map(identity => {
+                            const ref = React.createRef<HTMLVideoElement>();
+                            this.videos[identity] = ref;
+                            if(this.videos[identity].current) {
+                                this.videos[identity].current.srcObject = this.comm[identity];
+                            }
+                            const isLocalIdentity = this.isLocalIdentity(identity);
+                            return (
+                                <IonCard key={identity}>
+                                    <IonCardContent>
+                                        <video
+                                            autoPlay
+                                            muted={true}
+
+                                            style={{height: '200px'}}
+                                            key={identity}
+                                            width="100%"
+                                            ref={ref => { if(ref) { ref.srcObject = this.comm[identity]; } }}
+                                            /* muted={identity === this.network.peer.id} */
+                                        />
+                                    </IonCardContent>
+                                    <IonCardHeader>
+                                        <IonCardSubtitle>Peer Id</IonCardSubtitle>
+                                        <IonCardTitle>{identity}</IonCardTitle>
+                                    </IonCardHeader>
+                                    <IonFab vertical="bottom" horizontal="start"
+                                            slot="start">
+                                        <IonFabButton onClick={() => {
+                                            // @ts-ignore
+                                            return ref.current.play()
+                                        }}>
+                                            <IonIcon icon={play}/>
+                                        </IonFabButton>
+                                    </IonFab>
+                                </IonCard>
+                            )
+                        })
+                    }
+                </Container>
+            </IonPage>
+        );
+
+        /* return (
+            <IonPage>
                 <IonHeader>
                     <IonToolbar>
                         <IonTitle>Ionic Blank</IonTitle>
                     </IonToolbar>
                 </IonHeader>
-                <IonContent className="ion-padding">
+                <Container className="ion-padding">
                     <IonChip onClick={()=> {
                         // @ts-ignore
                         copy(this.network.peer.id, {
@@ -171,11 +259,10 @@ class Comm extends Component {
                             )
                         })
                     }
-                </IonContent>
+                </Container>
             </IonPage>
-        );
+        ); */
     }
-
 }
 
 export default Comm;
